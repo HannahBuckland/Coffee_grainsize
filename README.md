@@ -12,4 +12,4 @@ The grind settings used appear to be linear spaced. Also we see from the differe
 ![Grind size to GSD](https://github.com/HannahBuckland/Coffee_grainsize/blob/main/plots/grind_size_linear.png)
 
 The same grind setting using different beans appears to produce a slightly different grain size distribution.
-![Bean type relating to grain size](https://github.com/HannahBuckland/Coffee_grainsize/blob/main/plots/beantype.png)
+![Bean type relating to grain size](https://github.com/HannahBuckland/Coffee_grainsize/blob/main/plots/beantype_linear.png)
