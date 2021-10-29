@@ -12,7 +12,7 @@ library(viridis)
 # First - Read in .xle files (excel compatible files that the Camsizer produces)
 
 
-# List all files witl .xle extension
+# List all files with .xle extension
 all_xle <-
   list.files(
     "Camsizer_raw",
@@ -183,6 +183,24 @@ averaged_bind <- rbindlist(averaged_xle, idcol = TRUE)
 xle_no_dups <- averaged_bind %>%
   group_by(.id) %>%
   summarise(count = n())
+
+
+######################################################################
+# Calculating grain size statistics for each coffee analysis 29/10/2021
+
+# Calculate the median grain size from the cumulative distribution
+md50_coffee <-
+  averaged_bind %>%
+  group_by(.id) %>%
+  summarise(grind = unique(grind),
+            bean=unique(bean),
+            param = unique(param),
+            md50 = approx(cum2,min_um,xout=50,method="linear",ties=mean)[[2]],
+            md50 = round(md50,1)) 
+
+# Have a look at comparing same grind size and size parameter for different bean
+grind01_xcmin <- md50_coffee %>%
+  filter(grind == "grind01" & param == "xcmin")
 
 ######################################################################
 # Plotting code below this line
