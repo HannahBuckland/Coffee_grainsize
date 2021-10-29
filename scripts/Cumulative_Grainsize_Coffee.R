@@ -140,7 +140,7 @@ Bplots <- ggplot(data=xlefiles_processed %>%
 # Facet by the size parameter and give title
 beantype <- Bplots + facet_wrap(~param) + ggtitle("Comparing bean types")
 
-# Save individual plots as pdfs
+# Save individual plots as pngs
 ggsave("plots/grind_size_linear.png",grindsize, width = 8,height=6,units = "in")
 ggsave("plots/beantype_linear.png",beantype, width = 8,height=6,units = "in")
 
