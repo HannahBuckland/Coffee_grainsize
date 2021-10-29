@@ -8,7 +8,8 @@ library(data.table)
 library(patchwork)
 library(viridis)
 
-# First - Read in .xle files (excel compatible files that the Camsizer produces) --------
+######################################################################
+# First - Read in .xle files (excel compatible files that the Camsizer produces)
 
 
 # List all files witl .xle extension
@@ -61,7 +62,8 @@ file_process <- function(xlefile) {
 # Apply the function across all the .xle files to read them in and clean them up
 all_xlefiles <- lapply(all_xle,FUN=file_process)
 # Assign names to the all_xlefiles list and unique=TRUE allows for repeat measurements to be assigned a number
-names(all_xlefiles) <- make.names(simple_name,unique=TRUE)
+names(all_xlefiles) <- make.names(simple_name,
+                                  unique=TRUE)
 
 # Unlist the list into long format where the id column is equal to the name of the list item
 xlefiles_bind <- rbindlist(all_xlefiles,idcol=TRUE)
@@ -71,17 +73,53 @@ xlefiles_bind <- rbindlist(all_xlefiles,idcol=TRUE)
 xlefiles_processed <- xlefiles_bind %>%
   mutate(sample = tstrsplit(.id,"_")[[1]],
          param = paste0(tstrsplit(.id,"_")[[2]],tstrsplit(.id,"_")[[3]]),
+         param = gsub("([[:punct:]]+)([[:digit:]]+)", '', param),
+         name = paste0(sample,param),
          bean = ifelse(grepl("Guayancan",sample),"Guayancan",
                        "Tumba"),
          grind = paste0("grind",tstrsplit(sample,bean)[[2]]),
-         grind = factor(grind,levels=c("grind01","grind02","grind03","grind04","grind05","grind06","grind07","grind08","grind09","grind10","grind11")))
+         grind = factor(grind,levels=c("grind01","grind02","grind03","grind04","grind05","grind06","grind07","grind08","grind09","grind10","grind11"))) %>%
+  select(-.id)
 
-###################################  TO DO!!!!! ################################
-# I still haven't coded up a way to deal with replicated analyses so at the moment the results aren't average
-# This is on my TO DO list
-###############################################################################
+######################################################################
+# Dealing with repeat analyses
 
-# Plotting code below this line ------------
+# Find out where the duplicated analyses are
+xle_duplicates <- xlefiles_processed %>%
+  group_by(name) %>%
+  summarise(count=n()) 
+
+# Get a vector of each run name that we want an average for
+unique_runs <- unique(xle_duplicates$name)
+
+# Function to average the repeat runs for each sample and size parameter combo
+average_repeats <- function(runname){
+  
+  subset_xle <- xlefiles_processed %>%
+    filter(name == runname) %>%
+    select(c(name,sample,param,grind,bean,min_um,max_um,vol_perc,cum2)) %>%
+    pivot_wider(names_from =  name, values_from = c(vol_perc,cum2),values_fn = mean)
+  
+  # can't figure out how to now have the prefix on the variables so manually renaming columns
+  colnames(subset_xle) <- c("sample","param","grind","bean","min_um","max_um","vol_perc", "cum2")
+  return(subset_xle)
+  
+}
+# Apply the averaging function
+averaged_xle <- lapply(unique_runs,FUN=average_repeats)
+# Assign names to the output of the function
+names(averaged_xle) <- make.names(unique_runs)
+
+#Unlist the list into long format 
+averaged_bind <- rbindlist(averaged_xle,idcol=TRUE)
+
+# Final check will show that there is now only one entry dataset (an average) for each grind setting and size parameter
+xle_no_dups <- averaged_bind %>%
+  group_by(.id) %>%
+  summarise(count=n())
+
+######################################################################
+# Plotting code below this line 
 
 # Setting up colour palette in coffee(ish) colours
 pallete <- c(grind01="#edc4b3",
@@ -99,14 +137,14 @@ pallete <- c(grind01="#edc4b3",
 
 # Produce plot to demonstrate how grind setting relates to the actual GSD
 
-Cplots <- ggplot(data=xlefiles_processed %>%
+Cplots <- ggplot(data=averaged_bind %>%
                   filter(param %in% c("xFemax","xcmin"),
                          bean=="Tumba")) +
   geom_hline(yintercept = 50,colour="grey80",linetype="dotted") +
   geom_line(aes(x=min_um,y=cum2,colour=grind,linetype=bean)) +
   scale_colour_manual(values= pallete,labels = seq(1,11,by=1)) +
   scale_linetype_manual(values=c(1)) +
-  #scale_x_log10(name = "Grain size (µm)") +
+  scale_x_log10(name = "Grain size (µm)") +
   scale_y_continuous(name = "Cumulative Volume %",expand= c(0.01,0.01)) +
   labs(colour = "Grind",linetype = "Bean type") +
   theme_bw() +
@@ -121,13 +159,13 @@ grindsize <- Cplots + facet_wrap(~param) + ggtitle("Grind size to grain size")
 
 # Produce plot to demonstrate how the bean type influences the GSD produced by the same grind setting
 
-Bplots <- ggplot(data=xlefiles_processed %>%
+Bplots <- ggplot(data=averaged_bind %>%
                    filter(param %in% c("xFemax","xcmin"))) +
   geom_hline(yintercept = 50,colour="grey80",linetype="dotted") +
   geom_line(aes(x=min_um,y=cum2,colour=grind,linetype=bean)) +
   scale_colour_manual(values= pallete,labels = seq(1,11,by=1)) +
   scale_linetype_manual(values=c(2,1)) +
-  #scale_x_log10(name = "Grain size (µm)") +
+  scale_x_log10(name = "Grain size (µm)") +
   scale_y_continuous(name = "Cumulative Volume %",expand= c(0.01,0.01)) +
   labs(colour = "Grind",linetype = "Bean type") +
   theme_bw() +
@@ -141,6 +179,6 @@ Bplots <- ggplot(data=xlefiles_processed %>%
 beantype <- Bplots + facet_wrap(~param) + ggtitle("Comparing bean types")
 
 # Save individual plots as pngs
-ggsave("plots/grind_size_linear.png",grindsize, width = 8,height=4,units = "in")
-ggsave("plots/beantype_linear.png",beantype, width = 8,height=4,units = "in")
+ggsave("plots/grind_size.png",grindsize, width = 8,height=4,units = "in")
+ggsave("plots/beantype.png",beantype, width = 8,height=4,units = "in")
 
