@@ -198,6 +198,14 @@ md50_coffee <-
             md50 = approx(cum2,min_um,xout=50,method="linear",ties=mean)[[2]],
             md50 = round(md50,1)) 
 
+md50_wide <- 
+  md50_coffee %>%
+  select(-.id) %>%
+  pivot_wider(names_from = bean, values_from = md50) %>%
+  mutate(diff = abs(Tumba-Guayancan)) %>%
+  pivot_wider(names_from = param, values_from = c(Tumba,Guayancan,diff)) 
+
+
 # Have a look at comparing same grind size and size parameter for different bean
 grind01_xcmin <- md50_coffee %>%
   filter(grind == "grind01" & param == "xcmin")
@@ -224,7 +232,7 @@ pallete <- c(
 # Produce plot to demonstrate how grind setting relates to the actual GSD
 
 Cplots <- ggplot(data = averaged_bind %>%
-                   filter(param %in% c("xFemax", "xcmin"),
+                   filter(param %in% c("xFemax","xarea", "xcmin"),
                           bean == "Tumba")) +
   geom_hline(yintercept = 50,
              colour = "grey80",
@@ -237,7 +245,8 @@ Cplots <- ggplot(data = averaged_bind %>%
   )) +
   scale_colour_manual(values = pallete, labels = seq(1, 11, by = 1)) +
   scale_linetype_manual(values = c(1)) +
-  scale_x_log10(name = "Grain size (µm)") +
+  scale_x_log10() +
+  xlab("Grain size (µm)") +
   scale_y_continuous(name = "Cumulative Volume %", expand = c(0.01, 0.01)) +
   labs(colour = "Grind", linetype = "Bean type") +
   theme_bw() +
@@ -268,7 +277,8 @@ Bplots <- ggplot(data = averaged_bind %>%
   )) +
   scale_colour_manual(values = pallete, labels = seq(1, 11, by = 1)) +
   scale_linetype_manual(values = c(2, 1)) +
-  scale_x_log10(name = "Grain size (µm)") +
+  scale_x_log10() +
+  xlab("Grain size (µm)") +
   scale_y_continuous(name = "Cumulative Volume %", expand = c(0.01, 0.01)) +
   labs(colour = "Grind", linetype = "Bean type") +
   theme_bw() +
@@ -288,7 +298,7 @@ beantype <-
 ggsave(
   "plots/grind_size.png",
   grindsize,
-  width = 8,
+  width = 10,
   height = 4,
   units = "in"
 )
@@ -299,3 +309,35 @@ ggsave(
   height = 4,
   units = "in"
 )
+
+# Illustrate the different median grain size for each size parameter and bean type
+
+medianGS <- ggplot(data=md50_coffee) +
+  geom_point(aes(x=grind,
+                 y=md50,
+                 colour = param,
+                 shape = bean), size = 2) +
+  labs(colour = "Size Parameter", shape = "Bean Type") +
+  ylab("Median Grain size (µm)") +
+  xlab("Grind Setting") +
+  scale_x_discrete(labels = seq(1,11,by=1)) +
+  #scale_y_log10() +
+  scale_colour_manual(values = c("#F24236","#75B9BE","#044389")) +
+  theme_bw() +
+  theme(
+    aspect.ratio = 1,
+    legend.position = "right",
+    axis.text = element_text(colour = "black", size = 11),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )
+
+ggsave(
+  "plots/medianGS_compare.png",
+  medianGS,
+  width=6,
+  height=4,
+  units="in"
+)
+
+
